@@ -20,11 +20,11 @@ abstract class Tp50
      * @return \Be\Db4\Driver
      * @throws \Exception
      */
-    public static function singleton($db = 'default')
+    public static function getDb($db = 'default')
     {
         $key = 'Db:' . $db;
         if (isset(self::$cache[$key])) return self::$cache[$key];
-        self::$cache[$key] = self::instance($db);
+        self::$cache[$key] = self::newDb($db);
         return self::$cache[$key];
     }
 
@@ -33,7 +33,7 @@ abstract class Tp50
      * @return \Be\Db4\Driver
      * @throws \Exception
      */
-    public static function instance($db = 'default')
+    public static function newDb($db = 'default')
     {
         $config = null;
         if ($db == 'default') {
