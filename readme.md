@@ -26,7 +26,7 @@ $db = \Be\Db4\Tp51::getDb();
 // 指定配置项, 在 ThinkPHP 的 database.php 配置中 增加一项 custom
 $db = \Be\Db4\Tp51::getDb('database.custom');
 
-// 创建数据库实便，每次调用返回一个新实例
+// 创建数据库实例，每次调用返回一个新实例
 $db = \Be\Db4\Tp51::newDb();
 
 
