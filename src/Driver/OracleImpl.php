@@ -1,0 +1,874 @@
+<?php
+namespace Be\Db4\Driver;
+
+use Be\Db4\Driver;
+use Be\Db4\DbException;
+
+/**
+ * 数据库类
+ */
+class OracleImpl extends Driver
+{
+
+    /**
+     * 连接数据库
+     *
+     * @return \PDO 连接
+     * @throws DbException
+     */
+    public function connect()
+    {
+        if ($this->connection === null) {
+            $config = $this->config;
+
+            $options = array(
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION
+            );
+            if (isset($config['options'])) {
+                $options = $config['options'] + $options;
+            }
+
+            $dsn = null;
+            if (isset($config['dsn']) && $config['dsn']) {
+                $dsn = $config['dsn'];
+            } else {
+                $dsn = 'oci:dbname=';
+                if (!empty($config['host'])) {
+                    $dsn .= '//' . $config['host'] . ($config['port'] ? ':' . $config['port'] : '') . '/';
+                }
+                $dsn .= $config['name'];
+                if (!empty($config['charset'])) {
+                    $dsn .= ';charset=' . $config['charset'];
+                }
+            }
+
+            $connection = new \PDO($dsn, $config['user'], $config['pass'], $options);
+            if (!$connection) throw new DbException('连接 数据库' . $config['name'] . '（' . $config['host'] . '） 失败！');
+
+            $this->connection = $connection;
+        }
+
+        return $this->connection;
+    }
+
+    /**
+     * 插入一个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array | object $object 要插入数据库的对象或对象数组，对象属性需要和该表字段一致
+     * @return int 插入的主键ID
+     * @throws DbException
+     */
+    public function insert($table, $object)
+    {
+        $vars = null;
+        if (is_array($object)) {
+            $vars = $object;
+        } elseif (is_object($object)) {
+            $vars = get_object_vars($object);
+        } else {
+            throw new DbException('插入的数据格式须为对象或数组');
+        }
+
+        $tableFields = $this->getTableFields($table);
+
+        $fields = [];
+        $placeholders = [];
+        foreach ($vars as $k => $var) {
+
+            if (!isset($tableFields[$k])) {
+                throw new DbException('字段 ' . $k . ' 在表 ' . $table . ' 中不存在！');
+            }
+
+            $fields[] = $this->quoteKey($k);
+
+            $tableField = $tableFields[$k];
+            switch ($tableField->type) {
+                case 'date':
+                    $placeholders[] = 'to_date(?, \'yyyy-mm-dd hh24:mi:ss\')';
+                    break;
+                case 'timestamp':
+                    $placeholders[] = 'to_timestamp(?, \'yyyy-mm-dd hh24:mi:ss\')';
+                    break;
+                default:
+                    $placeholders[] = '?';
+            }
+        }
+
+        $sql = 'INSERT INTO ' . $this->quoteKey($table) . '(' . implode(',', $fields) . ') VALUES(' . implode(',', $placeholders) . ')';
+
+        $values = [];
+        foreach ($vars as $k => $value) {
+            $tableField = $tableFields[$k];
+            switch ($tableField->type) {
+                case 'date':
+                    $t = strtotime($value);
+                    if (!$t) {
+                        $values[] = '';
+                    } else {
+                        $values[] = date('Y-m-d H:i:s', $t);
+                    }
+                    break;
+                case 'timestamp':
+                    $t = strtotime($value);
+                    if (!$t) {
+                        $values[] = '';
+                    } else {
+                        $values[] = date('Y-m-d H:i:s', $t);
+                    }
+                    break;
+                case 'number':
+                    $values[] = round($value, $tableField->scale);
+                    break;
+                default:
+                    $values[] = $value;
+            }
+        }
+
+        $statement = $this->execute($sql, array_values($vars));
+        $statement->closeCursor();
+        return 1;
+    }
+
+    /**
+     * 批量插入多个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array $objects 要插入数据库的对象数组，对象属性需要和该表字段一致
+     * @return array 批量插入的ID列表
+     * @throws DbException
+     */
+    public function insertMany($table, $objects)
+    {
+        if (!is_array($objects) || count($objects) == 0) return [];
+
+        $ids = [];
+        reset($objects);
+        $object = current($objects);
+        $vars = null;
+        if (is_array($object)) {
+            $vars = $object;
+        } elseif (is_object($object)) {
+            $vars = get_object_vars($object);
+        } else {
+            throw new DbException('批量插入的数据格式须为对象或数组');
+        }
+        ksort($vars);
+
+        $tableFields = $this->getTableFields($table);
+
+        $fields = [];
+        $placeholders = [];
+        foreach ($vars as $k => $var) {
+
+            if (!isset($tableFields[$k])) {
+                throw new DbException('字段 ' . $k . ' 在表 ' . $table . ' 中不存在！');
+            }
+
+            $fields[] = $this->quoteKey($k);
+
+            $tableField = $tableFields[$k];
+            switch ($tableField->type) {
+                case 'date':
+                    $placeholders[] = 'to_date(?, \'yyyy-mm-dd hh24:mi:ss\')';
+                    break;
+                case 'timestamp':
+                    $placeholders[] = 'to_timestamp(?, \'yyyy-mm-dd hh24:mi:ss\')';
+                    break;
+                default:
+                    $placeholders[] = '?';
+            }
+        }
+
+        $sql = 'INSERT INTO ' . $this->quoteKey($table) . '(' . implode(',', $fields) . ') VALUES(' . implode(',', $placeholders) . ')';
+        $statement = $this->prepare($sql);
+        foreach ($objects as $o) {
+            $vars = null;
+            if (is_array($o)) {
+                $vars = $o;
+            } elseif (is_object($o)) {
+                $vars = get_object_vars($o);
+            } else {
+                throw new DbException('批量插入的数据格式须为对象或数组');
+            }
+            ksort($vars);
+
+            $values = [];
+            foreach ($vars as $k => $value) {
+
+                if (!isset($tableFields[$k])) {
+                    throw new DbException('字段 ' . $k . ' 在表 ' . $table . ' 中不存在！');
+                }
+
+                $tableField = $tableFields[$k];
+                switch ($tableField->type) {
+                    case 'date':
+                        $t = strtotime($value);
+                        if (!$t) {
+                            $values[] = '';
+                        } else {
+                            $values[] = date('Y-m-d H:i:s', $t);
+                        }
+                        break;
+                    case 'timestamp':
+                        $t = strtotime($value);
+                        if (!$t) {
+                            $values[] = '';
+                        } else {
+                            $values[] = date('Y-m-d H:i:s', $t);
+                        }
+                        break;
+                    case 'number':
+                        $values[] = round($value, $tableField->scale);
+                        break;
+                    default:
+                        $values[] = $value;
+                }
+            }
+
+            $result = $statement->execute($values);
+            $ids[] = $result ? 1 : 0;
+        }
+        $statement->closeCursor();
+
+        return $ids;
+    }
+
+    /**
+     * 快速插入一个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array | object $object 要插入数据库的对象，对象属性需要和该表字段一致
+     * @return int 插入的主键ID
+     * @throws DbException
+     */
+    public function quickInsert($table, $object)
+    {
+        $effectLines = null;
+
+        $vars = null;
+        if (is_array($object)) {
+            $vars = $object;
+        } elseif (is_object($object)) {
+            $vars = get_object_vars($object);
+        } else {
+            throw new DbException('快速插入的数据格式须为对象或数组');
+        }
+
+        $tableFields = $this->getTableFields($table);
+
+        $fields = [];
+        foreach ($vars as $k => $var) {
+
+            if (!isset($tableFields[$k])) {
+                throw new DbException('字段 ' . $k . ' 在表 ' . $table . ' 中不存在！');
+            }
+
+            $fields[] = $this->quoteKey($k);
+        }
+
+        $sql = 'INSERT INTO ' . $this->quoteKey($table) . '(' . implode(',', $fields) . ') VALUES';
+
+        $values = [];
+        foreach ($vars as $k => $value) {
+
+            $tableField = $tableFields[$k];
+
+            switch ($tableField->type) {
+                case 'date':
+                    $t = strtotime($value);
+                    if (!$t) {
+                        $values[] = '\'\'';
+                    } else {
+                        $values[] = 'to_date(\'' . date('Y-m-d H:i:s', $t) . '\', \'yyyy-mm-dd hh24:mi:ss\')';
+                    }
+                    break;
+                case 'timestamp':
+                    $t = strtotime($value);
+                    if (!$t) {
+                        $values[] = '\'\'';
+                    } else {
+                        $values[] = 'to_timestamp(\'' . date('Y-m-d H:i:s', $t) . '\', \'yyyy-mm-dd hh24:mi:ss\')';
+                    }
+                    break;
+                case 'number':
+                    $values[] = round($value, $tableField->scale);
+                    break;
+                default:
+                    $values[] = $this->quoteValue($value);
+            }
+        }
+
+        $sql .= '(' . implode(',', $values) . ')';
+
+        $statement = $this->query($sql);
+        $statement->closeCursor();
+
+        return 1;
+    }
+
+    /**
+     * 快速批量插入多个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array $objects 要插入数据库的对象数组，对象属性需要和该表字段一致
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function quickInsertMany($table, $objects)
+    {
+        if (!is_array($objects) || count($objects) == 0) return 0;
+
+        reset($obj);
+        $object = current($objects);
+        $vars = null;
+        if (is_array($object)) {
+            $vars = $object;
+        } elseif (is_object($object)) {
+            $vars = get_object_vars($object);
+        } else {
+            throw new DbException('快速批量插入的数据格式须为对象或数组');
+        }
+        ksort($vars);
+
+        $tableFields = $this->getTableFields($table);
+
+        $fields = [];
+        foreach ($vars as $k => $var) {
+
+            if (!isset($tableFields[$k])) {
+                throw new DbException('字段 ' . $k . ' 在表 ' . $table . ' 中不存在！');
+            }
+
+            $fields[] = $this->quoteKey($k);
+        }
+
+        $sql = 'INSERT INTO ' . $this->quoteKey($table) . '(' . implode(',', $fields) . ') VALUES';
+        foreach ($objects as $o) {
+            $vars = null;
+            if (is_array($o)) {
+                $vars = $o;
+            } elseif (is_object($o)) {
+                $vars = get_object_vars($o);
+            } else {
+                throw new DbException('快速批量插入的数据格式须为对象或数组');
+            }
+            ksort($vars);
+
+            $values = [];
+            foreach ($vars as $k => $value) {
+
+                $tableField = $tableFields[$k];
+
+                switch ($tableField->type) {
+                    case 'date':
+                        $t = strtotime($value);
+                        if (!$t) {
+                            $values[] = '\'\'';
+                        } else {
+                            $values[] = 'to_date(\'' . date('Y-m-d H:i:s', $t) . '\', \'yyyy-mm-dd hh24:mi:ss\')';
+                        }
+                        break;
+                    case 'timestamp':
+                        $t = strtotime($value);
+                        if (!$t) {
+                            $values[] = '\'\'';
+                        } else {
+                            $values[] = 'to_timestamp(\'' . date('Y-m-d H:i:s', $t) . '\', \'yyyy-mm-dd hh24:mi:ss\')';
+                        }
+                        break;
+                    case 'number':
+                        $values[] = round($value, $tableField->scale);
+                        break;
+                    default:
+                        $values[] = $this->quoteValue($value);
+                }
+            }
+
+            $sql .= '(' . implode(',', $values) . '),';
+        }
+        $sql = substr($sql, 0, -1);
+        $statement = $this->query($sql);
+        $effectLines = $statement->rowCount();
+        $statement->closeCursor();
+
+        return $effectLines;
+    }
+
+    /**
+     * 更新一个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array | object $object 要插入数据库的对象，对象属性需要和该表字段一致
+     * @param null | string | array $primaryKey 主键
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function update($table, $object, $primaryKey = null)
+    {
+        $tableFields = $this->getTableFields($table);
+
+        $fields = [];
+        $fieldValues = [];
+
+        $where = [];
+        $whereValue = [];
+
+        if ($primaryKey === null) {
+            $primaryKey = $this->getTablePrimaryKey($table);
+            if ($primaryKey === false) {
+                throw new DbException('新数据表' . $table . '无主键，不支持按主键更新！');
+            }
+        }
+
+        $vars = null;
+        if (is_array($object)) {
+            $vars = $object;
+        } elseif (is_object($object)) {
+            $vars = get_object_vars($object);
+        } else {
+            throw new DbException('更新的数据格式须为对象或数组');
+        }
+
+        foreach ($vars as $key => $value) {
+            if (is_array($value) || is_object($value)) {
+                continue;
+            }
+
+            if (!isset($tableFields[$key])) {
+                throw new DbException('字段 ' . $key . ' 在表 ' . $table . ' 中不存在！');
+            }
+
+            $tableField = $tableFields[$key];
+
+            $isPrimaryKey = false;
+            if (is_array($primaryKey)) {
+                if (in_array($key, $primaryKey)) {
+                    $isPrimaryKey = true;
+                }
+            } else {
+                if ($key == $primaryKey) {
+                    $isPrimaryKey = true;
+                }
+            }
+
+            // 主键作为WHERE条件，不更新
+            if ($isPrimaryKey) {
+                switch ($tableField->type) {
+                    case 'date':
+                        $t = strtotime($value);
+                        if (!$t) {
+                            $where[] = $this->quoteKey($key) . ' IS NULL';
+                        } else {
+                            $where[] = $this->quoteKey($key) . ' = to_date(?, \'yyyy-mm-dd hh24:mi:ss\')';
+                            $whereValue[] = date('Y-m-d H:i:s', $t);
+                        }
+                        break;
+                    case 'timestamp':
+                        $t = strtotime($value);
+                        if (!$t) {
+                            $where[] = $this->quoteKey($key) . ' IS NULL';
+                        } else {
+                            $where[] = $this->quoteKey($key) . ' = to_timestamp(?, \'yyyy-mm-dd hh24:mi:ss\')';
+                            $whereValue[] = date('Y-m-d H:i:s', $t);
+                        }
+                        break;
+                    case 'number':
+                        $where[] = $this->quoteKey($key) . '=?';
+                        $whereValue[] = round($value, $tableField->scale);
+                        break;
+                    default:
+                        if ($value == '') {
+                            $where[] = $this->quoteKey($key) . ' IS NULL';
+                        } else {
+                            $where[] = $this->quoteKey($key) . '=?';
+                            $whereValue[] = $value;
+                        }
+                }
+
+                continue;
+            }
+
+            switch ($tableField->type) {
+                case 'date':
+
+                    $t = strtotime($value);
+                    if (!$t) {
+                        $fields[] = $this->quoteKey($key) . ' = ?';
+                        $fieldValues[] = '';
+                    } else {
+                        $fields[] = $this->quoteKey($key) . ' = to_date(?, \'yyyy-mm-dd hh24:mi:ss\')';
+                        $fieldValues[] = date('Y-m-d H:i:s', $t);
+                    }
+
+                    break;
+                case 'timestamp':
+
+                    $t = strtotime($value);
+                    if (!$t) {
+                        $fields[] = $this->quoteKey($key) . ' = ?';
+                        $fieldValues[] = '';
+                    } else {
+                        $fields[] = $this->quoteKey($key) . ' = to_timestamp(?, \'yyyy-mm-dd hh24:mi:ss\')';
+                        $fieldValues[] = date('Y-m-d H:i:s', $t);
+                    }
+
+                    break;
+                case 'number':
+                    $fields[] = $this->quoteKey($key) . '=?';
+                    $fieldValues[] = round($value, $tableField->scale);
+                    break;
+                default:
+                    $fields[] = $this->quoteKey($key) . '=?';
+                    $fieldValues[] = $value;
+            }
+        }
+
+        if ($where == null) {
+            throw new DbException('更新数据时未指定条件！');
+        }
+
+        $sql = 'UPDATE ' . $this->quoteKey($table) . ' SET ' . implode(',', $fields) . ' WHERE ' . implode(' AND ', $where);
+        $fieldValues = array_merge($fieldValues, $whereValue);
+
+        $statement = $this->execute($sql, $fieldValues);
+        $effectLines = $statement->rowCount();
+        $statement->closeCursor();
+
+        return $effectLines;
+    }
+
+    /**
+     * 快速更新一个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array | object $object 要插入数据库的对象，对象属性需要和该表字段一致
+     * @param null | string | array $primaryKey 主键
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function quickUpdate($table, $object, $primaryKey = null)
+    {
+        $tableFields = $this->getTableFields($table);
+
+        $where = [];
+        $fields = [];
+
+        if ($primaryKey === null) {
+            $primaryKey = $this->getTablePrimaryKey($table);
+            if ($primaryKey === false) {
+                throw new DbException('新数据表' . $table . '无主键，不支持按主键更新！');
+            }
+        }
+
+        $vars = null;
+        if (is_array($object)) {
+            $vars = $object;
+        } elseif (is_object($object)) {
+            $vars = get_object_vars($object);
+        } else {
+            throw new DbException('更新的数据格式须为对象或数组');
+        }
+
+        foreach ($vars as $key => $value) {
+            if (is_array($value) || is_object($value)) {
+                continue;
+            }
+
+            if (!isset($tableFields[$key])) {
+                throw new DbException('字段 ' . $key . ' 在表 ' . $table . ' 中不存在！');
+            }
+
+            $tableField = $tableFields[$key];
+
+            $isPrimaryKey = false;
+            if (is_array($primaryKey)) {
+                if (in_array($key, $primaryKey)) {
+                    $isPrimaryKey = true;
+                }
+            } else {
+                if ($key == $primaryKey) {
+                    $isPrimaryKey = true;
+                }
+            }
+
+            // 主键作为WHERE条件，不更新
+            if ($isPrimaryKey) {
+                switch ($tableField->type) {
+                    case 'date':
+                        $t = strtotime($value);
+                        if (!$t) {
+                            $where[] = $this->quoteKey($key) . ' IS NULL';
+                        } else {
+                            $where[] = $this->quoteKey($key) . ' = to_date(\'' . date('Y-m-d H:i:s', $t) . '\', \'yyyy-mm-dd hh24:mi:ss\')';
+                        }
+                        break;
+                    case 'timestamp':
+                        $t = strtotime($value);
+                        if (!$t) {
+                            $where[] = $this->quoteKey($key) . ' IS NULL';
+                        } else {
+                            $where[] = $this->quoteKey($key) . ' = to_timestamp(\'' . date('Y-m-d H:i:s', $t) . '\', \'yyyy-mm-dd hh24:mi:ss\')';
+                        }
+                        break;
+                    case 'number':
+                        $where[] = $this->quoteKey($key) . '=' . round($value, $tableField->scale);
+                        break;
+                    default:
+                        if ($value == '') {
+                            $where[] = $this->quoteKey($key) . ' IS NULL';
+                        } else {
+                            $where[] = $this->quoteKey($key) . '=' . $this->quoteValue($value);
+                        }
+                }
+
+                continue;
+            }
+
+            switch ($tableField->type) {
+                case 'date':
+
+                    $t = strtotime($value);
+                    if (!$t) {
+                        $fields[] = $this->quoteKey($key) . ' = \'\'';
+                    } else {
+                        $fields[] = $this->quoteKey($key) . ' = to_date(\'' . date('Y-m-d H:i:s', $t) . '\', \'yyyy-mm-dd hh24:mi:ss\')';
+                    }
+
+                    break;
+                case 'timestamp':
+
+                    $t = strtotime($value);
+                    if (!$t) {
+                        $fields[] = $this->quoteKey($key) . ' = \'\'';
+                    } else {
+                        $fields[] = $this->quoteKey($key) . ' = to_timestamp(\'' . date('Y-m-d H:i:s', $t) . '\', \'yyyy-mm-dd hh24:mi:ss\')';
+                    }
+
+                    break;
+                case 'number':
+                    $fields[] = $this->quoteKey($key) . '=' . round($value, $tableField->scale);
+                    break;
+                default:
+                    $fields[] = $this->quoteKey($key) . '=' . $this->quoteValue($value);
+            }
+
+        }
+
+        if ($where == null) {
+            throw new DbException('更新数据时未指定条件！');
+        }
+
+        $sql = 'UPDATE ' . $this->quoteKey($table) . ' SET ' . implode(',', $fields) . ' WHERE ' . implode(' AND ', $where);
+        $statement = $this->query($sql);
+        $effectLines = $statement->rowCount();
+        $statement->closeCursor();
+
+        return $effectLines;
+    }
+
+    /**
+     * 更新一个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array | object $object 要更新的对象，对象属性需要和该表字段一致
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function replace($table, $object)
+    {
+        throw new DbException('Oracle 数据库不支持 Replace Into！');
+    }
+
+    /**
+     * 批量更新多个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array $objects 要更新的对象数组，对象属性需要和该表字段一致
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function replaceMany($table, $objects)
+    {
+        throw new DbException('Oracle 数据库不支持 Replace Into！');
+    }
+
+    /**
+     * 快速更新一个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array | object $object 要更新的对象，对象属性需要和该表字段一致
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function quickReplace($table, $object)
+    {
+        throw new DbException('Oracle 数据库不支持 Replace Into！');
+    }
+
+    /**
+     * 快速批量更新多个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array $objects 要更新的对象数组，对象属性需要和该表字段一致
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function quickReplaceMany($table, $objects)
+    {
+        throw new DbException('Oracle 数据库不支持 Replace Into！');
+    }
+
+    /**
+     * 获取当前数据库所有表信息
+     *
+     * @return array
+     */
+    public function getTables()
+    {
+        return $this->getObjects('SELECT * FROM user_tab_comments');
+    }
+
+    /**
+     * 获取当前数据库所有表名
+     *
+     * @return array
+     */
+    public function getTableNames()
+    {
+        return $this->getValues('SELECT TABLE_NAME FROM user_tab_comments');
+    }
+
+    /**
+     * 获取一个表的字段列表
+     *
+     * @param string $table 表名
+     * @return array 对象数组
+     * 字段对象典型结构
+     * {
+     *      'name' => '字段名',
+     *      'type' => '类型',
+     *      'length' => '长度',
+     *      'precision' => '精度',
+     *      'scale' => '长度',
+     *      'comment' => '备注',
+     *      'default' => '默认值',
+     *      'nullAble' => '是否允许为空',
+     * }
+     */
+    public function getTableFields($table)
+    {
+        $cacheKey = 'TableFields:' . $table;
+        if (isset($this->cache[$cacheKey])) {
+            return $this->cache[$cacheKey];
+        }
+
+        $sql = 'SELECT 
+                  a.COLUMN_NAME,
+                  a.DATA_TYPE,
+                  a.DATA_LENGTH,
+                  a.DATA_PRECISION,
+                  a.DATA_SCALE,
+                  a.DATA_DEFAULT,
+                  a.NULLABLE,
+                  b.COMMENTS
+                FROM user_tab_columns a
+                INNER JOIN user_col_comments b ON b.COLUMN_NAME=a.column_name AND b.table_name=a.TABLE_NAME
+                WHERE a.table_name = UPPER(\'' . $table . '\')';
+
+        $fields = $this->getObjects($sql);
+
+        $data = array();
+        foreach ($fields as $field) {
+
+            $data[$field->COLUMN_NAME] = (object)[
+                'name' => $field->COLUMN_NAME,
+                'type' => strtolower($field->DATA_TYPE),
+                'length' => $field->DATA_LENGTH,
+                'precision' => $field->DATA_PRECISION,
+                'scale' => $field->DATA_SCALE,
+                'comment' => $field->COMMENTS,
+                'default' => $field->DATA_DEFAULT,
+                'nullAble' => $field->NULLABLE == 'Y' ? true : false,
+            ];
+
+        }
+
+        $this->cache[$cacheKey] = $data;
+        return $data;
+    }
+
+    /**
+     * 获取指定表的主银
+     *
+     * @param string $table 表名
+     * @return string|false
+     */
+    public function getTablePrimaryKey($table)
+    {
+
+        $cacheKey = 'TablePrimaryKey:' . $table;
+        if (isset($this->cache[$cacheKey])) {
+            return $this->cache[$cacheKey];
+        }
+
+        $sql = 'SELECT COLUMN_NAME 
+                FROM user_cons_columns 
+                WHERE constraint_name = (
+                  SELECT constraint_name 
+                  FROM user_constraints 
+                  WHERE table_name = ' . $this->quoteValue($table) . '
+                  AND constraint_type   =\'P\'
+                )';
+
+        $primaryKeys = $this->getValues($sql);
+
+        $primaryKey = false;
+        $count = count($primaryKeys);
+        if ($count > 1) {
+            $primaryKey = $primaryKeys;
+        } elseif ($count == 1) {
+            $primaryKey = $primaryKeys[0];
+        }
+
+        $this->cache[$cacheKey] = $primaryKey;
+        return $primaryKey;
+    }
+
+    /**
+     * 删除表
+     *
+     * @param string $table 表名
+     */
+    public function dropTable($table)
+    {
+        $statement = $this->execute('DROP TABLE ' . $this->quoteKey($table));
+        $statement->closeCursor();
+    }
+
+    /**
+     * 处理插入数据库的字段名或表名
+     *
+     * @param string $field
+     * @return string
+     */
+    public function quoteKey($field)
+    {
+        return '"' . $field . '"';
+    }
+
+    /**
+     * 处理插入数据库的字符串值，防注入, 仅处理敏感字符，不加外层引号，
+     * 与 quote 方法的区别可以理解为 quote 比 escape 多了最外层的引号
+     *
+     * @param string $value
+     * @return string
+     */
+    public function escape($value)
+    {
+        $value = str_replace('\'', '\'\'', $value);
+
+        return $value;
+    }
+
+}
