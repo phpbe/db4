@@ -18,12 +18,16 @@ PHP处理大量数据时，你是否经常遇到内存溢出？使用本类库�
 <?php
 require_once './vendor/autoload.php';
 
-
-// 单例，多次调用返回同一个实例
+// 在 ThinkPHP 中使用
+// 单例，多次调用返回同一个实例（ThinkPHP 5.0）
+$db = \Be\Db4\Tp50::singleton();
+// ThinkPHP 5.1
 $db = \Be\Db4\Tp51::singleton();
 
 // 创建数据库实便，每次调用返回一个新实例
 $db = \Be\Db4\Tp51::instance();
+
+
 
 ```
 #### 事务处理示例
