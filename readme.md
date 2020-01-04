@@ -112,7 +112,7 @@ $users = $db->getYieldArrays('SELECT * FROM user WHERE age=18');
 ##### 占位符
 ```php
 $users = $db->getObjects('SELECT * FROM user WHERE age=?', [18]);
-$users = $db->getObjects('SELECT * FROM user WHERE age>=? AND age<=', [18, 25]);
+$users = $db->getObjects('SELECT * FROM user WHERE age>=? AND age<=?', [18, 25]);
 $users = $db->getObjects('SELECT * FROM user WHERE name=?', ['abc']);
 $users = $db->getObjects('SELECT * FROM user WHERE name=? AND age=?', ['abc', 18]);
 
@@ -216,4 +216,4 @@ $db->execute($sql, ['abc']);
 
 > 因此，迭代器方法如果用在了事务中，不应该操作事务相关的数据，MYSQL 的默认事务隔离级别使得迭代器方法读取不到事务中尚未提交的数据。
 
-> 当MYSQL的事务隔离级别为：READ-UNCOMMITTED(读取未提交)，迭代器方法才可以读取到未提交的数据。
+> 当MYSQL的事务隔离级别为 READ-UNCOMMITTED(读取未提交) 时，迭代器方法才可以读取到未提交的数据。
