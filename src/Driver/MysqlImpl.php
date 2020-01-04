@@ -154,7 +154,7 @@ class MysqlImpl extends Driver
             $fields[] = $this->quoteKey($field);
         }
 
-        $sql = 'INSERT INTO ' . $this->quoteKey($table) . '(' . implode(',', $fields) . '`) VALUES';
+        $sql = 'INSERT INTO ' . $this->quoteKey($table) . '(' . implode(',', $fields) . ') VALUES';
         $values = array_values($vars);
         foreach ($values as &$value) {
             if ($value !== null) {
@@ -595,7 +595,7 @@ class MysqlImpl extends Driver
             return $this->cache[$cacheKey];
         }
 
-        $fields = $this->getObjects('SHOW FULL FIELDS FROM `' . $table . '`');
+        $fields = $this->getObjects('SHOW FULL FIELDS FROM ' . $this->quoteKey($table));
 
         $data = [];
         foreach ($fields as $field) {
