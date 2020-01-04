@@ -19,7 +19,7 @@ PHP处理大量数据时，你是否经常遇到内存溢出？使用本类库�
 require_once './vendor/autoload.php';
 
 // 在 ThinkPHP 中使用
-// 单例，多次调用返回同一个实例（ThinkPHP 5.0）
+// 单例，多次调用返回同一个实例（ThinkPHP 5.0），使用TP默认的数据库
 $db = \Be\Db4\Tp50::getDb();
 // ThinkPHP 5.1
 $db = \Be\Db4\Tp51::getDb();
@@ -29,9 +29,27 @@ $db = \Be\Db4\Tp51::getDb('database.custom');
 // 创建数据库实例，每次调用返回一个新实例
 $db = \Be\Db4\Tp51::newDb();
 
-
-
 ```
+#### ThinkPHP 配置
+
+##### 字符串方式
+```php
+"custom" => "mysql://username:password@192.168.0.1:3306/database#utf8",
+```
+
+##### 数组方式
+```php
+'custom' => [
+    'type'           => 'mysql',
+    'hostname'       => '192.168.0.1',
+    'database'       => 'database',
+    'username'       => 'username',
+    'password'       => 'password',
+],
+```
+
+
+
 #### 事务处理示例
 ```php
 
