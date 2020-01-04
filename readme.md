@@ -182,8 +182,10 @@ $db->quickReplaceMany('user', $users);
 $search = "abc'abc";
 $sql = 'SELECT * FROM ' . $db->quoteKey('user') . ' WHERE ' . $db->quoteKey('name') . '=' . $db->quoteValue($search)
 $user = $db->getObject($sql);
+
+// 对等SQL(MySQL): SELECT * FROM `user` WHERE `name` = 'abc\'abc'
+// 对等SQL(Oracle): SELECT * FROM "user" WHERE "name" = 'abc\'\'abc'
 ```
-执行的SQL: SELECT * FROM `user` WHERE `name` = 'abc\'abc'
 
 
 ##### 拼接SQL, 防注入, escape 方法
@@ -191,8 +193,11 @@ $user = $db->getObject($sql);
 $search = "abc'abc";
 $sql = 'SELECT * FROM ' . $db->quoteKey('user') . ' WHERE ' . $db->quoteKey('name') . '=\'' . $db->escape($search) . '\''
 $user = $db->getObject($sql);
+
+// 对等SQL(MySQL): SELECT * FROM `user` WHERE `name` = 'abc\'abc'
+// 对等SQL(Oracle): SELECT * FROM "user" WHERE "name" = 'abc\'\'abc'
 ```
-执行的SQL: SELECT * FROM `user` WHERE `name` = 'abc\'abc'
+
 
 
 
