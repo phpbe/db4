@@ -49,6 +49,174 @@ class MysqlImpl extends Driver
     }
 
     /**
+     * 预编译 sql 语句
+     *
+     * @param string $sql 查询语句
+     * @param array $options 参数
+     * @return \PDOStatement
+     * @throws DbException | \PDOException | \Exception
+     */
+    public function prepare($sql, array $options = null)
+    {
+        if ($this->connection === null) $this->connect();
+
+        try {
+            $statement = null;
+            if ($options === null) {
+                $statement = $this->connection->prepare($sql);
+            } else {
+                $statement = $this->connection->prepare($sql, $options);
+            }
+            return $statement;
+        } catch (\PDOException $e) {
+            /*
+             * 当错误码为2006/2013，且没有事务时，重连数据库，
+             */
+            if (($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) && $this->transactions == 0) {
+                $this->close();
+                return $this->prepare($sql, $options);
+            }
+
+            throw $e;
+        } catch (\Exception $e) {
+
+            if ($this->transactions == 0) {
+
+                $errors = [
+                    'server has gone away'
+                ];
+
+                $break = false;
+                $message = $e->getMessage();
+                foreach ($errors as $error) {
+                    if (strpos($message, $error) !== false) {
+                        $break = true;
+                        break;
+                    }
+                }
+
+                if ($break) {
+                    $this->close();
+                    return $this->prepare($sql, $options);
+                }
+
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * 执行 sql 语句
+     *
+     * @param string $sql 查询语句
+     * @param array $bind 占位参数
+     * @param array $prepareOptions 参数
+     * @return \PDOStatement
+     * @throws DbException | \PDOException | \Exception
+     */
+    public function execute($sql, array $bind = null, array $prepareOptions = null)
+    {
+        $statement = $this->prepare($sql, $prepareOptions);
+
+        try {
+            if ($bind === null) {
+                $statement->execute();
+            } else {
+                $statement->execute($bind);
+            }
+            return $statement;
+
+        } catch (\PDOException $e) {
+            /*
+             * 当错误码为2006/2013，且没有事务时，重连数据库，
+             */
+            if (($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) && $this->transactions == 0) {
+                $this->close();
+                return $this->execute($sql, $bind, $prepareOptions);
+            }
+
+            throw $e;
+        } catch (\Exception $e) {
+
+            if ($this->transactions == 0) {
+
+                $errors = [
+                    'server has gone away'
+                ];
+
+                $break = false;
+                $message = $e->getMessage();
+                foreach ($errors as $error) {
+                    if (strpos($message, $error) !== false) {
+                        $break = true;
+                        break;
+                    }
+                }
+
+                if ($break) {
+                    $this->close();
+                    return $this->execute($sql, $bind, $prepareOptions);
+                }
+
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * 执行 sql 语句
+     *
+     * @param string $sql 查询语句
+     * @return \PDOStatement
+     * @throws DbException | \PDOException | \Exception
+     */
+    public function query($sql)
+    {
+        if ($this->connection === null) $this->connect();
+        try {
+            $statement = $this->connection->query($sql);
+            return $statement;
+        } catch (\PDOException $e) {
+
+            /*
+             * 当错误码为2006/2013，且没有事务时，重连数据库，
+             */
+            if (($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) && $this->transactions == 0) {
+                $this->close();
+                return $this->query($sql);
+            }
+
+            throw $e;
+
+        } catch (\Exception $e) {
+
+            if ($this->transactions == 0) {
+                $errors = [
+                    'server has gone away'
+                ];
+
+                $break = false;
+                $message = $e->getMessage();
+                foreach ($errors as $error) {
+                    if (strpos($message, $error) !== false) {
+                        $break = true;
+                        break;
+                    }
+                }
+
+                if ($break) {
+                    $this->close();
+                    return $this->query($sql);
+                }
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
      * 插入一个对象到数据库
      *
      * @param string $table 表名

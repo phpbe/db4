@@ -55,31 +55,19 @@ abstract class Driver
      * @param string $sql 查询语句
      * @param array $options 参数
      * @return \PDOStatement
-     * @throws DbException
+     * @throws DbException | \PDOException | \Exception
      */
     public function prepare($sql, array $options = null)
     {
         if ($this->connection === null) $this->connect();
 
-        try {
-            $statement = null;
-            if ($options === null) {
-                $statement = $this->connection->prepare($sql);
-            } else {
-                $statement = $this->connection->prepare($sql, $options);
-            }
-            return $statement;
-        } catch (\PDOException $e) {
-            /*
-             * 当错误码为2006/2013，且没有事务时，重连数据库，
-             */
-            if (($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) && $this->transactions == 0) {
-                $this->close();
-                return $this->prepare($sql, $options);
-            }
-
-            throw $e;
+        $statement = null;
+        if ($options === null) {
+            $statement = $this->connection->prepare($sql);
+        } else {
+            $statement = $this->connection->prepare($sql, $options);
         }
+        return $statement;
     }
 
     /**
@@ -89,31 +77,17 @@ abstract class Driver
      * @param array $bind 占位参数
      * @param array $prepareOptions 参数
      * @return \PDOStatement
-     * @throws DbException | \PDOException
+     * @throws DbException | \PDOException | \Exception
      */
     public function execute($sql, array $bind = null, array $prepareOptions = null)
     {
         $statement = $this->prepare($sql, $prepareOptions);
-
-        try {
-            if ($bind === null) {
-                $statement->execute();
-            } else {
-                $statement->execute($bind);
-            }
-            return $statement;
-
-        } catch (\PDOException $e) {
-            /*
-             * 当错误码为2006/2013，且没有事务时，重连数据库，
-             */
-            if (($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) && $this->transactions == 0) {
-                $this->close();
-                return $this->execute($sql, $bind, $prepareOptions);
-            }
-
-            throw $e;
+        if ($bind === null) {
+            $statement->execute();
+        } else {
+            $statement->execute($bind);
         }
+        return $statement;
     }
 
     /**
@@ -121,27 +95,13 @@ abstract class Driver
      *
      * @param string $sql 查询语句
      * @return \PDOStatement
-     * @throws \PDOException | DbException
+     * @throws DbException | \PDOException | \Exception
      */
     public function query($sql)
     {
         if ($this->connection === null) $this->connect();
-        try {
-            $statement = $this->connection->query($sql);
-            return $statement;
-        } catch (\PDOException $e) {
-
-            /*
-             * 当错误码为2006/2013，且没有事务时，重连数据库，
-             */
-            if (($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) && $this->transactions == 0) {
-                $this->close();
-                return $this->query($sql);
-            }
-
-            throw $e;
-
-        }
+        $statement = $this->connection->query($sql);
+        return $statement;
     }
 
     /**
