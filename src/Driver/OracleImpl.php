@@ -343,7 +343,7 @@ class OracleImpl extends Driver
             $fields[] = $this->quoteKey($k);
         }
 
-        $sql = 'INSERT INTO ' . $this->quoteKey($table) . '(' . implode(',', $fields) . ') VALUES';
+        $sql = 'INSERT ALL ';
         foreach ($objects as $o) {
             $vars = null;
             if (is_array($o)) {
@@ -385,15 +385,18 @@ class OracleImpl extends Driver
                 }
             }
 
-            $sql .= '(' . implode(',', $values) . '),';
+            $sql .= 'INTO ' . $this->quoteKey($table) . '(' . implode(',', $fields) . ') VALUES (' . implode(',', $values) . ') ';
         }
-        $sql = substr($sql, 0, -1);
+
+        $sql .= 'SELECT 1 FROM DUAL';
         $statement = $this->query($sql);
         $effectLines = $statement->rowCount();
         $statement->closeCursor();
 
         return $effectLines;
     }
+
+
 
     /**
      * 更新一个对象到数据库
