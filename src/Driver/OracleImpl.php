@@ -319,7 +319,7 @@ class OracleImpl extends Driver
     {
         if (!is_array($objects) || count($objects) == 0) return 0;
 
-        reset($obj);
+        reset($objects);
         $object = current($objects);
         $vars = null;
         if (is_array($object)) {
