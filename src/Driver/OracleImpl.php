@@ -118,7 +118,15 @@ class OracleImpl extends Driver
                     }
                     break;
                 case 'number':
-                    $values[] = round($value, $tableField->scale);
+                    if (strpos($value, '.') === false) {
+                        if (is_numeric($value)) {
+                            $values[] = $value;
+                        } else {
+                            $values[] = 0;
+                        }
+                    } else {
+                        $values[] = round($value, $tableField->scale);
+                    }
                     break;
                 default:
                     $values[] = $value;
@@ -219,7 +227,15 @@ class OracleImpl extends Driver
                         }
                         break;
                     case 'number':
-                        $values[] = round($value, $tableField->scale);
+                        if (strpos($value, '.') === false) {
+                            if (is_numeric($value)) {
+                                $values[] = $value;
+                            } else {
+                                $values[] = 0;
+                            }
+                        } else {
+                            $values[] = round($value, $tableField->scale);
+                        }
                         break;
                     default:
                         $values[] = $value;
@@ -292,7 +308,15 @@ class OracleImpl extends Driver
                     }
                     break;
                 case 'number':
-                    $values[] = round($value, $tableField->scale);
+                    if (strpos($value, '.') === false) {
+                        if (is_numeric($value)) {
+                            $values[] = $value;
+                        } else {
+                            $values[] = 0;
+                        }
+                    } else {
+                        $values[] = round($value, $tableField->scale);
+                    }
                     break;
                 default:
                     $values[] = $this->quoteValue($value);
@@ -378,7 +402,15 @@ class OracleImpl extends Driver
                         }
                         break;
                     case 'number':
-                        $values[] = round($value, $tableField->scale);
+                        if (strpos($value, '.') === false) {
+                            if (is_numeric($value)) {
+                                $values[] = $value;
+                            } else {
+                                $values[] = 0;
+                            }
+                        } else {
+                            $values[] = round($value, $tableField->scale);
+                        }
                         break;
                     default:
                         $values[] = $this->quoteValue($value);
@@ -478,7 +510,15 @@ class OracleImpl extends Driver
                         break;
                     case 'number':
                         $where[] = $this->quoteKey($key) . '=?';
-                        $whereValue[] = round($value, $tableField->scale);
+                        if (strpos($value, '.') === false) {
+                            if (is_numeric($value)) {
+                                $whereValue[] = $value;
+                            } else {
+                                $whereValue[] = 0;
+                            }
+                        } else {
+                            $whereValue[] = round($value, $tableField->scale);
+                        }
                         break;
                     default:
                         if ($value == '') {
@@ -519,7 +559,15 @@ class OracleImpl extends Driver
                     break;
                 case 'number':
                     $fields[] = $this->quoteKey($key) . '=?';
-                    $fieldValues[] = round($value, $tableField->scale);
+                    if (strpos($value, '.') === false) {
+                        if (is_numeric($value)) {
+                            $whereValue[] = $value;
+                        } else {
+                            $whereValue[] = 0;
+                        }
+                    } else {
+                        $whereValue[] = round($value, $tableField->scale);
+                    }
                     break;
                 default:
                     $fields[] = $this->quoteKey($key) . '=?';
@@ -615,7 +663,15 @@ class OracleImpl extends Driver
                         }
                         break;
                     case 'number':
-                        $where[] = $this->quoteKey($key) . '=' . round($value, $tableField->scale);
+                        if (strpos($value, '.') === false) {
+                            if (is_numeric($value)) {
+                                $where[] = $this->quoteKey($key) . '=' . $value;
+                            } else {
+                                $where[] = $this->quoteKey($key) . '=0';
+                            }
+                        } else {
+                            $where[] = $this->quoteKey($key) . '=' . round($value, $tableField->scale);
+                        }
                         break;
                     default:
                         if ($value == '') {
@@ -650,7 +706,15 @@ class OracleImpl extends Driver
 
                     break;
                 case 'number':
-                    $fields[] = $this->quoteKey($key) . '=' . round($value, $tableField->scale);
+                    if (strpos($value, '.') === false) {
+                        if (is_numeric($value)) {
+                            $fields[] = $this->quoteKey($key) . '=' . $value;
+                        } else {
+                            $fields[] = $this->quoteKey($key) . '=0';
+                        }
+                    } else {
+                        $fields[] = $this->quoteKey($key) . '=' . round($value, $tableField->scale);
+                    }
                     break;
                 default:
                     $fields[] = $this->quoteKey($key) . '=' . $this->quoteValue($value);
