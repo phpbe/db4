@@ -726,7 +726,7 @@ class OracleImpl extends Driver
      */
     public function getTables()
     {
-        return $this->getObjects('SELECT * FROM user_tab_comments');
+        return $this->getObjects('SELECT * FROM "USER_TAB_COMMENTS"');
     }
 
     /**
@@ -736,7 +736,27 @@ class OracleImpl extends Driver
      */
     public function getTableNames()
     {
-        return $this->getValues('SELECT TABLE_NAME FROM user_tab_comments');
+        return $this->getValues('SELECT "TABLE_NAME" FROM "USER_TAB_COMMENTS"');
+    }
+
+    /**
+     * 获取当前数据库所有表信息
+     *
+     * @return array
+     */
+    public function getAllTables()
+    {
+        return $this->getObjects('SELECT * FROM "ALL_TAB_COMMENTS"');
+    }
+
+    /**
+     * 获取当前数据库所有表名
+     *
+     * @return array
+     */
+    public function getAllTableNames()
+    {
+        return $this->getValues('SELECT "TABLE_NAME" FROM "ALL_TAB_COMMENTS"');
     }
 
     /**
@@ -763,22 +783,49 @@ class OracleImpl extends Driver
             return $this->cache[$cacheKey];
         }
 
-        $sql = 'SELECT 
-                  a.COLUMN_NAME,
-                  a.DATA_TYPE,
-                  a.DATA_LENGTH,
-                  a.DATA_PRECISION,
-                  a.DATA_SCALE,
-                  a.DATA_DEFAULT,
-                  a.NULLABLE,
-                  b.COMMENTS
-                FROM user_tab_columns a
-                INNER JOIN user_col_comments b ON b.COLUMN_NAME=a.column_name AND b.table_name=a.TABLE_NAME
-                WHERE a.table_name = UPPER(\'' . $table . '\')';
+        $sql = null;
+        if (strpos($table, '.')) {
+            $tables = explode('.', $table);
+            $owner = $tables[0];
+            $table = $tables[1];
+
+            $sql = 'SELECT 
+                      a."COLUMN_NAME",
+                      a."DATA_TYPE",
+                      a."DATA_LENGTH",
+                      a."DATA_PRECISION",
+                      a."DATA_SCALE",
+                      a."DATA_DEFAULT",
+                      a."NULLABLE",
+                      b."COMMENTS"
+                    FROM "ALL_TAB_COLUMNS" a
+                    INNER JOIN "ALL_COL_COMMENTS" b 
+                      ON b."COLUMN_NAME" = a."COLUMN_NAME" 
+                      AND b."TABLE_NAME" = a."TABLE_NAME"
+                      AND b."OWNER" = ' . $this->quoteValue($owner) . ' 
+                      AND b."TABLE_NAME" = ' . $this->quoteValue($table) . ' 
+                    WHERE a."OWNER" = ' . $this->quoteValue($owner) . ' 
+                    AND a."TABLE_NAME" = ' . $this->quoteValue($table);
+        } else {
+            $sql = 'SELECT 
+                      a."COLUMN_NAME",
+                      a."DATA_TYPE",
+                      a."DATA_LENGTH",
+                      a."DATA_PRECISION",
+                      a."DATA_SCALE",
+                      a."DATA_DEFAULT",
+                      a."NULLABLE",
+                      b."COMMENTS"
+                    FROM "USER_TAB_COLUMNS" a
+                    INNER JOIN "USER_COL_COMMENTS" b 
+                      ON b."COLUMN_NAME" = a."COLUMN_NAME" 
+                      AND b."TABLE_NAME" = a."TABLE_NAME"
+                    WHERE a."TABLE_NAME" = ' . $this->quoteValue($table);
+        }
 
         $fields = $this->getObjects($sql);
 
-        $data = array();
+        $data = [];
         foreach ($fields as $field) {
 
             $data[$field->COLUMN_NAME] = (object)[
@@ -806,22 +853,51 @@ class OracleImpl extends Driver
      */
     public function getTablePrimaryKey($table)
     {
-
         $cacheKey = 'TablePrimaryKey:' . $table;
         if (isset($this->cache[$cacheKey])) {
             return $this->cache[$cacheKey];
         }
 
-        $sql = 'SELECT COLUMN_NAME 
-                FROM user_cons_columns 
-                WHERE constraint_name = (
-                  SELECT constraint_name 
-                  FROM user_constraints 
-                  WHERE table_name = ' . $this->quoteValue($table) . '
-                  AND constraint_type   =\'P\'
-                )';
+        $primaryKeys = [];
+        if (strpos($table, '.')) {
 
-        $primaryKeys = $this->getValues($sql);
+            $tables = explode('.', $table);
+            $owner = $tables[0];
+            $table = $tables[1];
+
+            $sql = 'SELECT "CONSTRAINT_NAME" 
+                    FROM "ALL_CONSTRAINTS" 
+                    WHERE "OWNER" = '.$this->quoteValue($owner).' 
+                    AND "TABLE_NAME" = ' . $this->quoteValue($table) . '
+                    AND "CONSTRAINT_TYPE" =\'P\'';
+
+            $constraintName = $this->getValue($sql);
+
+            if ($constraintName) {
+                $sql = 'SELECT "COLUMN_NAME" 
+                        FROM "ALL_COL_COMMENTS" 
+                        WHERE "CONSTRAINT_NAME" = ' . $this->quoteValue($constraintName) ;
+
+                $primaryKeys = $this->getValues($sql);
+            }
+
+        } else {
+
+            $sql = 'SELECT "CONSTRAINT_NAME" 
+                    FROM "USER_CONSTRAINTS" 
+                    WHERE "TABLE_NAME" = ' . $this->quoteValue($table) . '
+                    AND "CONSTRAINT_TYPE" =\'P\'';
+
+            $constraintName = $this->getValue($sql);
+
+            if ($constraintName) {
+                $sql = 'SELECT "COLUMN_NAME" 
+                        FROM "USER_CONS_COLUMNS" 
+                        WHERE "CONSTRAINT_NAME" = ' . $this->quoteValue($constraintName) ;
+
+                $primaryKeys = $this->getValues($sql);
+            }
+        }
 
         $primaryKey = false;
         $count = count($primaryKeys);
@@ -854,6 +930,10 @@ class OracleImpl extends Driver
      */
     public function quoteKey($field)
     {
+        if (strpos($field, '.')) {
+            $field = str_replace('.', '"."', $field);
+        }
+
         return '"' . $field . '"';
     }
 
