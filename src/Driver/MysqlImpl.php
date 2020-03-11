@@ -117,12 +117,14 @@ class MysqlImpl extends Driver
      */
     public function execute($sql, array $bind = null, array $prepareOptions = null)
     {
-        $statement = $this->prepare($sql, $prepareOptions);
 
         try {
+
             if ($bind === null) {
-                $statement->execute();
+                if ($this->connection === null) $this->connect();
+                $statement = $this->connection->query($sql);
             } else {
+                $statement = $this->prepare($sql, $prepareOptions);
                 $statement->execute($bind);
             }
             return $statement;
@@ -169,15 +171,14 @@ class MysqlImpl extends Driver
      * 执行 sql 语句
      *
      * @param string $sql 查询语句
-     * @return \PDOStatement
+     * @return bool
      * @throws DbException | \PDOException | \Exception
      */
-    public function query($sql)
+    public function query($sql, array $bind = null, array $prepareOptions = null)
     {
-        if ($this->connection === null) $this->connect();
         try {
-            $statement = $this->connection->query($sql);
-            return $statement;
+            $this->execute($sql, $bind, $prepareOptions)->closeCursor();
+            return true;
         } catch (\PDOException $e) {
 
             /*
@@ -185,7 +186,7 @@ class MysqlImpl extends Driver
              */
             if (($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) && $this->transactions == 0) {
                 $this->close();
-                return $this->query($sql);
+                return $this->query($sql, $bind, $prepareOptions);
             }
 
             throw $e;
@@ -208,7 +209,7 @@ class MysqlImpl extends Driver
 
                 if ($break) {
                     $this->close();
-                    return $this->query($sql);
+                    return $this->query($sql, $bind, $prepareOptions);
                 }
             }
 
