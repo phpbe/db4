@@ -171,14 +171,16 @@ class MysqlImpl extends Driver
      * 执行 sql 语句
      *
      * @param string $sql 查询语句
-     * @return bool
+     * @return int 影响的行数
      * @throws DbException | \PDOException | \Exception
      */
     public function query($sql, array $bind = null, array $prepareOptions = null)
     {
         try {
-            $this->execute($sql, $bind, $prepareOptions)->closeCursor();
-            return true;
+            $statement = $this->execute($sql, $bind, $prepareOptions);
+            $effectLines = $statement->rowCount();
+            $statement->closeCursor();
+            return $effectLines;
         } catch (\PDOException $e) {
 
             /*
@@ -333,7 +335,7 @@ class MysqlImpl extends Driver
             }
         }
         $sql .= '(' . implode(',', $values) . ')';
-        $statement = $this->query($sql);
+        $statement = $this->execute($sql);
         $statement->closeCursor();
 
         return $this->getLastInsertId();
@@ -391,7 +393,7 @@ class MysqlImpl extends Driver
             $sql .= '(' . implode(',', $values) . '),';
         }
         $sql = substr($sql, 0, -1);
-        $statement = $this->query($sql);
+        $statement = $this->execute($sql);
         $effectLines = $statement->rowCount();
         $statement->closeCursor();
 
@@ -531,7 +533,7 @@ class MysqlImpl extends Driver
         }
 
         $sql = 'UPDATE ' . $this->quoteKey($table) . ' SET ' . implode(',', $fields) . ' WHERE ' . implode(' AND ', $where);
-        $statement = $this->query($sql);
+        $statement = $this->execute($sql);
         $effectLines = $statement->rowCount();
         $statement->closeCursor();
 
@@ -655,7 +657,7 @@ class MysqlImpl extends Driver
             }
         }
         $sql .= '(' . implode(',', $values) . ')';
-        $statement = $this->query($sql);
+        $statement = $this->execute($sql);
         $effectLines = $statement->rowCount();
         $statement->closeCursor();
 
@@ -713,7 +715,7 @@ class MysqlImpl extends Driver
             $sql .= '(' . implode(',', $values) . '),';
         }
         $sql = substr($sql, 0, -1);
-        $statement = $this->query($sql);
+        $statement = $this->execute($sql);
         $effectLines = $statement->rowCount();
         $statement->closeCursor();
 
@@ -878,8 +880,7 @@ class MysqlImpl extends Driver
      */
     public function dropTable($table)
     {
-        $statement = $this->execute('DROP TABLE IF EXISTS ' . $this->quoteKey($table));
-        $statement->closeCursor();
+        $this->query('DROP TABLE IF EXISTS ' . $this->quoteKey($table));
     }
 
     /**
@@ -890,6 +891,10 @@ class MysqlImpl extends Driver
      */
     public function quoteKey($field)
     {
+        if (strpos($field, '.')) {
+            $field = str_replace('.', '`.`', $field);
+        }
+
         return '`' . $field . '`';
     }
 
