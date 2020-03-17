@@ -181,7 +181,7 @@ abstract class Driver
      */
     public function getArray($sql, array $bind = null)
     {
-        $statement = $bind === null ? $this->query($sql) : $this->execute($sql, $bind);
+        $statement = $this->execute($sql, $bind);
         $array = $statement->fetch(\PDO::FETCH_ASSOC);
         $statement->closeCursor();
         return $array;
