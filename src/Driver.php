@@ -577,6 +577,22 @@ abstract class Driver
     }
 
     /**
+     * 处理一组插入数据库的字符串值，防注入, 使用了PDO提供的quote方法
+     *
+     * @param array $values
+     * @return array
+     */
+    public function quoteValues($values) {
+        if ($this->connection === null) $this->connect();
+
+        $quotedValues = [];
+        foreach ($values as $value) {
+            $quotedValues[] = $this->connection->quote($value);
+        }
+        return $quotedValues;
+    }
+
+    /**
      * 处理插入数据库的字符串值，防注入, 仅处理敏感字符，不加外层引号，
      * 与 quoteValue 方法的区别可以理解为 quoteValue 比 escape 多了最外层的引号
      *
