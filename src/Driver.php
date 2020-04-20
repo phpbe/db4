@@ -6,6 +6,7 @@ namespace Be\Db4;
  */
 abstract class Driver
 {
+
     /**
      * @var \PDO
      */
@@ -555,6 +556,19 @@ abstract class Driver
         return $this->connection->getAttribute(\PDO::ATTR_SERVER_VERSION);
     }
 
+    /**
+     * 获取驱动类型 Mysql/Oracle/...
+     *
+     * @return string
+     */
+    public function getDriverType()
+    {
+        $class = get_called_class();
+        $driverType = substr($class, strrpos($class, '\\')+1);
+        $driverType = str_replace('Impl', '', $driverType);
+
+        return $driverType;
+    }
 
     /**
      * 处理插入数据库的字段名或表名

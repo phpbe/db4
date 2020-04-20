@@ -207,8 +207,8 @@ $sql = 'UPDATE user SET age=20 WHERE name=\'abc\''
 $db->query($sql);
 
 
-$sql = 'UPDATE user SET age=20 WHERE name=?'
-$db->execute($sql, ['abc']);
+$sql = 'UPDATE user SET age=? WHERE name=?'
+$db->query($sql, [20, 'abc']);
 ```
 
 
