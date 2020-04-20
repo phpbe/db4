@@ -557,17 +557,17 @@ abstract class Driver
     }
 
     /**
-     * 获取驱动类型 Mysql/Oracle/...
+     * 获取驱动名称 Mysql/Oracle/...
      *
      * @return string
      */
-    public function getDriverType()
+    public function getDriverName()
     {
         $class = get_called_class();
-        $driverType = substr($class, strrpos($class, '\\')+1);
-        $driverType = str_replace('Impl', '', $driverType);
+        $driverName = substr($class, strrpos($class, '\\')+1);
+        $driverName = str_replace('Impl', '', $driverName);
 
-        return $driverType;
+        return $driverName;
     }
 
     /**
