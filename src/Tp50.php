@@ -29,6 +29,28 @@ abstract class Tp50
     }
 
     /**
+     * 获取带超时时间的数据库对象
+     *
+     * @param string $db 数据库名
+     * @param int $expire 超时时间(单位：秒)
+     * @return \Be\Db4\Driver
+     * @throws \Exception
+     */
+    public static function getExpireDb($db = 'default', $expire = 600)
+    {
+        $key = 'ExpireDb:' . $db;
+        if (isset(self::$cache[$key]['expire']) && self::$cache[$key]['expire'] > time()) {
+            return self::$cache[$key]['instance'];
+        }
+
+        self::$cache[$key] = [
+            'expire' => time() + $expire,
+            'instance' => self::newDb($db)
+        ];
+        return self::$cache[$key]['instance'];
+    }
+
+    /**
      * @param string $db
      * @return \Be\Db4\Driver
      * @throws \Exception
