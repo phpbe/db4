@@ -376,7 +376,7 @@ abstract class Driver
      * 快速更新一个对象到数据库
      *
      * @param string $table 表名
-     * @param array | object $object 要插入数据库的对象，对象属性需要和该表字段一致
+     * @param array | object $object 要更新的对象，对象属性需要和该表字段一致
      * @param null | string | array $primaryKey 主键
      * @return int 影响的行数
      * @throws DbException
@@ -384,40 +384,62 @@ abstract class Driver
     public abstract function quickUpdate($table, $object, $primaryKey = null);
 
     /**
-     * 更新一个对象到数据库
-     *
-     * @param string $table 表名
-     * @param array | object $object 要更新的对象，对象属性需要和该表字段一致
-     * @return int 影响的行数
-     * @throws DbException
-     */
-    public abstract function replace($table, $object);
-
-    /**
      * 批量更新多个对象到数据库
      *
      * @param string $table 表名
-     * @param array $objects 要更新的对象数组，对象属性需要和该表字段一致
+     * @param array $objects $object 要更新的对象数组，对象属性需要和该表字段一致
+     * @param null | string | array $primaryKey 主键
      * @return int 影响的行数
      * @throws DbException
      */
-    public abstract function replaceMany($table, $objects);
-
-    /**
-     * 快速更新一个对象到数据库
-     *
-     * @param string $table 表名
-     * @param array | object $object 要更新的对象，对象属性需要和该表字段一致
-     * @return int 影响的行数
-     * @throws DbException
-     */
-    public abstract function quickReplace($table, $object);
+    public abstract function updateMany($table, $objects, $primaryKey = null);
 
     /**
      * 快速批量更新多个对象到数据库
      *
      * @param string $table 表名
      * @param array $objects 要更新的对象数组，对象属性需要和该表字段一致
+     * @param null | string | array $primaryKey 主键
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public abstract function quickUpdateMany($table, $objects, $primaryKey = null);
+
+    /**
+     * 替换一个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array | object $object 要替换的对象，对象属性需要和该表字段一致
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public abstract function replace($table, $object);
+
+    /**
+     * 批量替换多个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array $objects 要替换的对象数组，对象属性需要和该表字段一致
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public abstract function replaceMany($table, $objects);
+
+    /**
+     * 快速替换一个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array | object $object 要替换的对象，对象属性需要和该表字段一致
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public abstract function quickReplace($table, $object);
+
+    /**
+     * 快速批量替换多个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array $objects 要替换的对象数组，对象属性需要和该表字段一致
      * @return int 影响的行数
      * @throws DbException
      */

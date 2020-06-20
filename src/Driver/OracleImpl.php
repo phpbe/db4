@@ -83,7 +83,7 @@ class OracleImpl extends Driver
             $fields[] = $this->quoteKey($k);
 
             $tableField = $tableFields[$k];
-            switch ($tableField->type) {
+            switch ($tableField['type']) {
                 case 'date':
                     $placeholders[] = 'to_date(?, \'yyyy-mm-dd hh24:mi:ss\')';
                     break;
@@ -100,7 +100,7 @@ class OracleImpl extends Driver
         $values = [];
         foreach ($vars as $k => $value) {
             $tableField = $tableFields[$k];
-            switch ($tableField->type) {
+            switch ($tableField['type']) {
                 case 'date':
                     $t = strtotime($value);
                     if (!$t) {
@@ -125,7 +125,7 @@ class OracleImpl extends Driver
                             $values[] = 0;
                         }
                     } else {
-                        $values[] = round($value, $tableField->scale);
+                        $values[] = round($value, $tableField['scale']);
                     }
                     break;
                 default:
@@ -176,7 +176,7 @@ class OracleImpl extends Driver
             $fields[] = $this->quoteKey($k);
 
             $tableField = $tableFields[$k];
-            switch ($tableField->type) {
+            switch ($tableField['type']) {
                 case 'date':
                     $placeholders[] = 'to_date(?, \'yyyy-mm-dd hh24:mi:ss\')';
                     break;
@@ -209,7 +209,7 @@ class OracleImpl extends Driver
                 }
 
                 $tableField = $tableFields[$k];
-                switch ($tableField->type) {
+                switch ($tableField['type']) {
                     case 'date':
                         $t = strtotime($value);
                         if (!$t) {
@@ -234,7 +234,7 @@ class OracleImpl extends Driver
                                 $values[] = 0;
                             }
                         } else {
-                            $values[] = round($value, $tableField->scale);
+                            $values[] = round($value, $tableField['scale']);
                         }
                         break;
                     default:
@@ -290,7 +290,7 @@ class OracleImpl extends Driver
 
             $tableField = $tableFields[$k];
 
-            switch ($tableField->type) {
+            switch ($tableField['type']) {
                 case 'date':
                     $t = strtotime($value);
                     if (!$t) {
@@ -315,7 +315,7 @@ class OracleImpl extends Driver
                             $values[] = 0;
                         }
                     } else {
-                        $values[] = round($value, $tableField->scale);
+                        $values[] = round($value, $tableField['scale']);
                     }
                     break;
                 default:
@@ -384,7 +384,7 @@ class OracleImpl extends Driver
 
                 $tableField = $tableFields[$k];
 
-                switch ($tableField->type) {
+                switch ($tableField['type']) {
                     case 'date':
                         $t = strtotime($value);
                         if (!$t) {
@@ -409,7 +409,7 @@ class OracleImpl extends Driver
                                 $values[] = 0;
                             }
                         } else {
-                            $values[] = round($value, $tableField->scale);
+                            $values[] = round($value, $tableField['scale']);
                         }
                         break;
                     default:
@@ -451,7 +451,7 @@ class OracleImpl extends Driver
 
         if ($primaryKey === null) {
             $primaryKey = $this->getTablePrimaryKey($table);
-            if ($primaryKey === false) {
+            if ($primaryKey === null) {
                 throw new DbException('新数据表' . $table . '无主键，不支持按主键更新！');
             }
         }
@@ -489,7 +489,7 @@ class OracleImpl extends Driver
 
             // 主键作为WHERE条件，不更新
             if ($isPrimaryKey) {
-                switch ($tableField->type) {
+                switch ($tableField['type']) {
                     case 'date':
                         $t = strtotime($value);
                         if (!$t) {
@@ -517,7 +517,7 @@ class OracleImpl extends Driver
                                 $whereValue[] = 0;
                             }
                         } else {
-                            $whereValue[] = round($value, $tableField->scale);
+                            $whereValue[] = round($value, $tableField['scale']);
                         }
                         break;
                     default:
@@ -532,7 +532,7 @@ class OracleImpl extends Driver
                 continue;
             }
 
-            switch ($tableField->type) {
+            switch ($tableField['type']) {
                 case 'date':
 
                     $t = strtotime($value);
@@ -566,7 +566,7 @@ class OracleImpl extends Driver
                             $whereValue[] = 0;
                         }
                     } else {
-                        $whereValue[] = round($value, $tableField->scale);
+                        $whereValue[] = round($value, $tableField['scale']);
                     }
                     break;
                 default:
@@ -607,7 +607,7 @@ class OracleImpl extends Driver
 
         if ($primaryKey === null) {
             $primaryKey = $this->getTablePrimaryKey($table);
-            if ($primaryKey === false) {
+            if ($primaryKey === null) {
                 throw new DbException('新数据表' . $table . '无主键，不支持按主键更新！');
             }
         }
@@ -645,7 +645,7 @@ class OracleImpl extends Driver
 
             // 主键作为WHERE条件，不更新
             if ($isPrimaryKey) {
-                switch ($tableField->type) {
+                switch ($tableField['type']) {
                     case 'date':
                         $t = strtotime($value);
                         if (!$t) {
@@ -670,7 +670,7 @@ class OracleImpl extends Driver
                                 $where[] = $this->quoteKey($key) . '=0';
                             }
                         } else {
-                            $where[] = $this->quoteKey($key) . '=' . round($value, $tableField->scale);
+                            $where[] = $this->quoteKey($key) . '=' . round($value, $tableField['scale']);
                         }
                         break;
                     default:
@@ -684,7 +684,7 @@ class OracleImpl extends Driver
                 continue;
             }
 
-            switch ($tableField->type) {
+            switch ($tableField['type']) {
                 case 'date':
 
                     $t = strtotime($value);
@@ -713,7 +713,7 @@ class OracleImpl extends Driver
                             $fields[] = $this->quoteKey($key) . '=0';
                         }
                     } else {
-                        $fields[] = $this->quoteKey($key) . '=' . round($value, $tableField->scale);
+                        $fields[] = $this->quoteKey($key) . '=' . round($value, $tableField['scale']);
                     }
                     break;
                 default:
@@ -895,7 +895,7 @@ class OracleImpl extends Driver
         $data = [];
         foreach ($fields as $field) {
 
-            $data[$field->COLUMN_NAME] = (object)[
+            $data[$field->COLUMN_NAME] = [
                 'name' => $field->COLUMN_NAME,
                 'type' => strtolower($field->DATA_TYPE),
                 'length' => $field->DATA_LENGTH,
@@ -916,7 +916,7 @@ class OracleImpl extends Driver
      * 获取指定表的主银
      *
      * @param string $table 表名
-     * @return string|false
+     * @return string | array | null
      */
     public function getTablePrimaryKey($table)
     {
@@ -966,7 +966,7 @@ class OracleImpl extends Driver
             }
         }
 
-        $primaryKey = false;
+        $primaryKey = null;
         $count = count($primaryKeys);
         if ($count > 1) {
             $primaryKey = $primaryKeys;
