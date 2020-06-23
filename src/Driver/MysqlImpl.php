@@ -673,7 +673,7 @@ class MysqlImpl extends Driver
         if ($primaryKey === null) {
             $primaryKey = $this->getTablePrimaryKey($table);
             if ($primaryKey === null) {
-                throw new DbException('新数据表' . $table . '无主键，不支持按主键快速批量更新！');
+                throw new DbException('新数据表' . $table . '无主键，不支持快速批量更新！');
             }
         }
 
