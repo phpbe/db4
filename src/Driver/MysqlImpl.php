@@ -677,6 +677,7 @@ class MysqlImpl extends Driver
             }
         }
 
+        // 获取第一条记灵的结构作为更新的数据结构
         reset($objects);
         $object = current($objects);
         $vars = null;
@@ -685,96 +686,109 @@ class MysqlImpl extends Driver
         } elseif (is_object($object)) {
             $vars = get_object_vars($object);
         } else {
-            throw new DbException('快速批量更新的数据格式须为对象或数组');
+            throw new DbException('快速批量更新的数据结构须为对象或数组');
         }
         ksort($vars);
-        $fieldNames = array_keys($vars);
+        $fields = array_keys($vars);
+
+        // 检查主键值是否存在
+        if (is_array($primaryKey)) {
+            foreach ($primaryKey as $pKey) {
+                if (!in_array($pKey, $fields)) {
+                    throw new DbException('快速批量更新的数据结构中未包念主键' . $pKey . '！');
+                }
+            }
+        } else {
+            if (!in_array($primaryKey, $fields)) {
+                throw new DbException('快速批量更新的数据结构中未包念主键' . $primaryKey . '！');
+            }
+        }
 
         $sql = 'UPDATE ' . $this->quoteKey($table) . ' SET ';
 
-        foreach ($fieldNames as $fieldName) {
-
-            // 主键不更新
+        $primaryKeyIn = [];
+        $caseMapping = [];
+        foreach ($fields as $field) {
             if (is_array($primaryKey)) {
-                if (in_array($fieldName, $primaryKey)) {
+                if (in_array($field, $primaryKey)) {
                     continue;
                 }
             } else {
-                if ($fieldName == $primaryKey) {
+                if ($field == $primaryKey) {
                     continue;
                 }
             }
 
-            $sql .= $this->quoteKey($fieldName) . ' = CASE ';
+            $caseMapping[$field] = [];
+        }
+
+        foreach ($objects as $o) {
+            $vars = null;
+            if (is_array($o)) {
+                $vars = $o;
+            } elseif (is_object($o)) {
+                $vars = get_object_vars($o);
+            } else {
+                throw new DbException('批量更新的数据结构须为对象或数组');
+            }
+            ksort($vars);
+
+            foreach ($fields as $field) {
+                if (!isset($vars[$field])) {
+                    throw new DbException('批量更新的数据结构不一致');
+                }
+
+                if (is_array($primaryKey)) {
+                    if (in_array($field, $primaryKey)) {
+                        continue;
+                    }
+
+                    $when = [];
+                    foreach ($primaryKey as $pKey) {
+                        $when[] = $this->quoteKey($pKey) . '=' . $this->quoteValue($vars[$pKey]);
+                    }
+                    $caseMapping[$field][] = 'WHEN ' . implode(' AND ', $when) . ' THEN ' . $this->quoteValue($vars[$field]);
+
+                } else {
+                    // 主键不更新
+                    if ($field == $primaryKey) {
+                        continue;
+                    }
+                    $caseMapping[$field][] = 'WHEN ' . $this->quoteValue($vars[$primaryKey]) . ' THEN ' . $this->quoteValue($vars[$field]);
+                }
+            }
+
+            if (is_array($primaryKey)) {
+                $in = [];
+                foreach ($primaryKey as $pKey) {
+                    $in[] = $this->quoteValue($vars[$pKey]);
+                }
+                $primaryKeyIn[] = '('.implode(',', $in).')';
+            } else {
+                $primaryKeyIn[] = $this->quoteValue($vars[$primaryKey]);
+            }
+        }
+
+        foreach ($caseMapping as $field => $cases) {
+            $sql .= $this->quoteKey($field) . ' = CASE ';
+
             if (!is_array($primaryKey)) {
                 $sql .= $this->quoteKey($primaryKey) . ' ';
             }
 
-            foreach ($objects as $o) {
-                $vars = null;
-                if (is_array($o)) {
-                    $vars = $o;
-                } elseif (is_object($o)) {
-                    $vars = get_object_vars($o);
-                } else {
-                    throw new DbException('批量更新的数据格式须为对象或数组');
-                }
-                ksort($vars);
-
-                $when = [];
-                $then = '';
-                foreach ($vars as $key => $value) {
-                    if (is_array($value) || is_object($value)) {
-                        continue;
-                    }
-
-                    if (is_array($primaryKey)) {
-                        if (in_array($key, $primaryKey)) {
-                            $when[] = $this->quoteKey($primaryKey) . '=' . $this->quoteValue($value);
-                            continue;
-                        }
-
-                    } else {
-
-                        // 主键不更新
-                        if ($key == $primaryKey) {
-                            $when = $this->quoteValue($value);
-                            continue;
-                        }
-                    }
-
-                    if ($key == $fieldName) {
-                        $then = $this->quoteValue($value);
-                    }
-                }
-
-                if (is_array($when)) {
-                    if (count($when) != $primaryKey) {
-                        throw new DbException('批量更新的数组未包含必须的主键名！');
-                    }
-                } else {
-                    if (!$when) {
-                        throw new DbException('批量更新的数组未包含必须的主键名！');
-                    }
-                }
-
-                if (!$then) {
-                    throw new DbException('批量更新的数组内部结构不一致');
-                }
-
-                $sql .= 'WHEN ';
-                if (is_array($when)) {
-                    $sql .= implode(' AND ', $when);
-                } else {
-                    $sql .= $when;
-                }
-                $sql .= ' THEN ' . $then . ' ';
-            }
-
+            $sql .= implode(' ', $cases);
             $sql .= 'END,';
         }
 
         $sql = substr($sql, 0, -1);
+        $sql .= ' WHERE ';
+        if (is_array($primaryKey)) {
+            $sql .= '(' . implode(',', $this->quoteKeys($primaryKey)) . ') IN ';
+        } else {
+            $sql .= $this->quoteKey($primaryKey) . ' IN ';
+        }
+
+        $sql .= '('.implode(',', $primaryKeyIn).')';
 
         $statement = $this->execute($sql);
         $effectLines = $statement->rowCount();

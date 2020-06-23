@@ -603,6 +603,19 @@ abstract class Driver
      */
     public abstract function quoteKey($field);
 
+    /**
+     * 处理多个插入数据库的字段名或表名
+     *
+     * @param array $fields
+     * @return array
+     */
+    public function quoteKeys($fields) {
+        $quotedKeys = [];
+        foreach ($fields as $field) {
+            $quotedKeys[] = $this->quoteKey($field);
+        }
+        return $quotedKeys;
+    }
 
     /**
      * 处理插入数据库的字符串值，防注入, 使用了PDO提供的quote方法
