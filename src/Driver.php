@@ -243,10 +243,7 @@ abstract class Driver
         if (count($arrays) == 0) return [];
 
         if ($key === null) {
-            foreach ($arrays[0] as $k => $v) {
-                $key = $k;
-                break;
-            }
+            $key = key($arrays[0]);
         }
 
         $result = [];
@@ -327,16 +324,14 @@ abstract class Driver
 
         if ($key === null) {
             $vars = get_object_vars($objects[0]);
-            foreach ($vars as $k => $v) {
-                $key = $k;
-                break;
-            }
+            $key = key($vars);
         }
 
         $result = [];
         foreach ($objects as $object) {
             $result[$object->$key] = $object;
         }
+
         return $result;
     }
 
