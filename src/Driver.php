@@ -230,15 +230,24 @@ abstract class Driver
      * 返回一个带下标索引的二维数组
      *
      * @param string $sql 查询语句
-     * @param array $bind 参数
-     * @param string $key 作为下标索引的字段名
+     * @param null | array $bind 参数
+     * @param null | string $key 作为下标索引的字段名
      * @return array
      */
-    public function getKeyArrays($sql, array $bind = null, $key)
+    public function getKeyArrays($sql, array $bind = null, $key = null)
     {
         $statement = $this->execute($sql, $bind);
         $arrays = $statement->fetchAll(\PDO::FETCH_ASSOC);
         $statement->closeCursor();
+
+        if (count($arrays) == 0) return [];
+
+        if ($key === null) {
+            foreach ($arrays[0] as $k => $v) {
+                $key = $k;
+                break;
+            }
+        }
 
         $result = [];
         foreach ($arrays as $array) {
@@ -304,15 +313,25 @@ abstract class Driver
      * 返回一个带下标索引的对象数组
      *
      * @param string $sql 查询语句
-     * @param array $bind 参数
-     * @param string $key 作为下标索引的字段名
+     * @param null | array $bind 参数
+     * @param null | string $key 作为下标索引的字段名
      * @return array(object)
      */
-    public function getKeyObjects($sql, array $bind = null, $key)
+    public function getKeyObjects($sql, array $bind = null, $key = null)
     {
         $statement = $this->execute($sql, $bind);
         $objects = $statement->fetchAll(\PDO::FETCH_OBJ);
         $statement->closeCursor();
+
+        if (count($objects) == 0) return [];
+
+        if ($key === null) {
+            $vars = get_object_vars($objects[0]);
+            foreach ($vars as $k => $v) {
+                $key = $k;
+                break;
+            }
+        }
 
         $result = [];
         foreach ($objects as $object) {
@@ -589,7 +608,7 @@ abstract class Driver
     public function getDriverName()
     {
         $class = get_called_class();
-        $driverName = substr($class, strrpos($class, '\\')+1);
+        $driverName = substr($class, strrpos($class, '\\') + 1);
         $driverName = str_replace('Impl', '', $driverName);
 
         return $driverName;
@@ -609,7 +628,8 @@ abstract class Driver
      * @param array $fields
      * @return array
      */
-    public function quoteKeys($fields) {
+    public function quoteKeys($fields)
+    {
         $quotedKeys = [];
         foreach ($fields as $field) {
             $quotedKeys[] = $this->quoteKey($field);
@@ -623,7 +643,8 @@ abstract class Driver
      * @param string $value
      * @return string
      */
-    public function quoteValue($value) {
+    public function quoteValue($value)
+    {
         if ($this->connection === null) $this->connect();
         return $this->connection->quote($value);
     }
@@ -634,7 +655,8 @@ abstract class Driver
      * @param array $values
      * @return array
      */
-    public function quoteValues($values) {
+    public function quoteValues($values)
+    {
         if ($this->connection === null) $this->connect();
 
         $quotedValues = [];
