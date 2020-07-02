@@ -735,6 +735,34 @@ class OracleImpl extends Driver
     }
 
     /**
+     * 批量更新多个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array $objects $object 要更新的对象数组，对象属性需要和该表字段一致
+     * @param null | string | array $primaryKey 主键或指定键名更新，未指定时自动取表的主键
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function updateMany($table, $objects, $primaryKey = null)
+    {
+        return 0;
+    }
+
+    /**
+     * 快速批量更新多个对象到数据库
+     *
+     * @param string $table 表名
+     * @param array $objects 要快速批量更新的对象数组，对象属性需要和该表字段一致
+     * @param null | string | array $primaryKey 主键或指定键名更新，未指定时自动取表的主键
+     * @return int 影响的行数
+     * @throws DbException
+     */
+    public function quickUpdateMany($table, $objects, $primaryKey = null)
+    {
+        return 0;
+    }
+
+    /**
      * 更新一个对象到数据库
      *
      * @param string $table 表名
